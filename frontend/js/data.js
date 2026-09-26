@@ -589,14 +589,38 @@
     });
   }
 
-  var quoteRenderPending = false;
+  var pendingLogLines = [];
+  var logFlushTimer = null;
+  function appendBufferedLog(line) {
+    pendingLogLines.push(line);
+    if (!logFlushTimer) {
+      logFlushTimer = setTimeout(function () {
+        logFlushTimer = null;
+        var logBox = document.getElementById('scrape-terminal-log');
+        if (!logBox || pendingLogLines.length === 0) return;
+        logBox.style.display = 'block';
+        var chunk = pendingLogLines.join('\n');
+        pendingLogLines = [];
+        var currentText = logBox.textContent || '';
+        var combined = currentText ? currentText + '\n' + chunk : chunk;
+        var lines = combined.split('\n');
+        if (lines.length > 80) {
+          logBox.textContent = lines.slice(-80).join('\n');
+        } else {
+          logBox.textContent = combined;
+        }
+        logBox.scrollTop = logBox.scrollHeight;
+      }, 100);
+    }
+  }
+
+  var quoteRenderTimer = null;
   function scheduleQuoteRender() {
-    if (quoteRenderPending) return;
-    quoteRenderPending = true;
-    requestAnimationFrame(function () {
-      quoteRenderPending = false;
+    if (quoteRenderTimer) return;
+    quoteRenderTimer = setTimeout(function () {
+      quoteRenderTimer = null;
       renderQuotes(getFilteredQuotes());
-    });
+    }, 300);
   }
 
   window.addEventListener('apix_quote_update', function (e) {
@@ -610,13 +634,9 @@
       liveSseQuotes.length = 500;
     }
 
-    var logBox = document.getElementById('scrape-terminal-log');
-    if (logBox) {
-      var timestamp = new Date().toLocaleTimeString('en-GB');
-      var line = '\n[' + timestamp + ' SSE STREAM] Real-time quote: ' + (item.airline || 'Carrier') + ' (' + (item.flightNumber || 'FLIGHT') + ') ' + (item.origin || '') + '-' + (item.destination || '') + ' \u20B9' + (item.totalFare || 0).toLocaleString('en-IN') + (item.surge ? ' 🚨 SURGE' : '');
-      logBox.textContent += line;
-      logBox.scrollTop = logBox.scrollHeight;
-    }
+    var timestamp = new Date().toLocaleTimeString('en-GB');
+    var line = '[' + timestamp + ' SSE STREAM] Real-time quote: ' + (item.airline || 'Carrier') + ' (' + (item.flightNumber || 'FLIGHT') + ') ' + (item.origin || '') + '-' + (item.destination || '') + ' \u20B9' + (item.totalFare || 0).toLocaleString('en-IN') + (item.surge ? ' 🚨 SURGE' : '');
+    appendBufferedLog(line);
 
     scheduleQuoteRender();
   });
@@ -723,11 +743,7 @@
         var badgeEl = document.getElementById('streamStatusBadge');
         var isPaused = badgeEl && badgeEl.textContent && badgeEl.textContent.indexOf('Paused') !== -1;
 
-        if (logBox) {
-          logBox.style.display = 'block';
-          logBox.textContent += '\n[STREAM ENGINE] ' + (isPaused ? 'Resuming' : 'Starting') + ' autonomous continuous stream (Target: ' + bSize + ' quotes/batch, Cooldown: ' + (cDown/1000) + 's)...';
-          logBox.scrollTop = logBox.scrollHeight;
-        }
+        appendBufferedLog('[STREAM ENGINE] ' + (isPaused ? 'Resuming' : 'Starting') + ' autonomous continuous stream (Target: ' + bSize + ' quotes/batch, Cooldown: ' + (cDown/1000) + 's)...');
 
         if (window.apiFetch) {
           var endpoint = isPaused ? '/stream/resume' : '/stream/start';
@@ -754,11 +770,7 @@
 
     if (btnPause) {
       btnPause.addEventListener('click', function() {
-        if (logBox) {
-          logBox.style.display = 'block';
-          logBox.textContent += '\n[STREAM ENGINE] Pausing continuous stream...';
-          logBox.scrollTop = logBox.scrollHeight;
-        }
+        appendBufferedLog('[STREAM ENGINE] Pausing continuous stream...');
         if (window.apiFetch) {
           window.apiFetch('/stream/pause', { method: 'POST' }).then(function(res) {
             if (res && res.stream) updateStreamUI(res.stream);
@@ -769,11 +781,7 @@
 
     if (btnStop) {
       btnStop.addEventListener('click', function() {
-        if (logBox) {
-          logBox.style.display = 'block';
-          logBox.textContent += '\n[STREAM ENGINE] Stopping continuous stream worker pool.';
-          logBox.scrollTop = logBox.scrollHeight;
-        }
+        appendBufferedLog('[STREAM ENGINE] Stopping continuous stream worker pool.');
         if (window.apiFetch) {
           window.apiFetch('/stream/stop', { method: 'POST' }).then(function(res) {
             if (res && res.stream) updateStreamUI(res.stream);
@@ -786,28 +794,40 @@
       updateStreamUI(e.detail);
     });
 
+    var streamStatsSyncTimer = null;
     window.addEventListener('apix_stream_batch_saved', function(e) {
       var batch = e.detail;
       if (!batch) return;
 
-      if (logBox) {
-        logBox.style.display = 'block';
-        var timeStr = new Date().toLocaleTimeString('en-GB');
-        var logLine = '\n[' + timeStr + ' BATCH COMMITTED] 💾 Batch #' + batch.batchNumber + ' (' + batch.quotesInBatch + ' quotes) successfully committed to MongoDB Atlas! [' + batch.inserted + ' new inserted, ' + batch.skipped + ' deduplicated] for ' + batch.carrier.toUpperCase() + ' ' + batch.route + '. Next batch queued after cooldown.';
-        logBox.textContent += logLine;
-        logBox.scrollTop = logBox.scrollHeight;
+      var timeStr = new Date().toLocaleTimeString('en-GB');
+      var logLine = '[' + timeStr + ' BATCH COMMITTED] 💾 Batch #' + batch.batchNumber + ' (' + batch.quotesInBatch + ' quotes) successfully committed to MongoDB Atlas! [' + batch.inserted + ' new inserted, ' + batch.skipped + ' deduplicated] for ' + (batch.carrier || 'carrier').toUpperCase() + ' ' + (batch.route || 'route') + '. Next batch queued after cooldown.';
+      appendBufferedLog(logLine);
+
+      // Instant optimistic local KPI update without waiting for network
+      var totalQuotesEl = document.getElementById('kpi-total-quotes');
+      var validQuotesEl = document.getElementById('kpi-valid-quotes');
+      if (totalQuotesEl) {
+        var curTotal = parseInt(totalQuotesEl.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+        totalQuotesEl.textContent = (curTotal + (batch.quotesInBatch || 0)).toLocaleString('en-IN');
+      }
+      if (validQuotesEl) {
+        var curValid = parseInt(validQuotesEl.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+        validQuotesEl.textContent = (curValid + (batch.inserted || batch.quotesInBatch || 0)).toLocaleString('en-IN');
       }
 
-      // Refresh KPI counts and tables
-      if (window.apiFetch) {
-        window.apiFetch('/stats').then(function(data) {
-          if (data && data.kpis) renderKpis(data.kpis);
-          if (data && data.recentQuotes) {
-            allScrapedQuotes = data.recentQuotes;
-            renderQuotes(getFilteredQuotes());
-          }
-        });
-      }
+      // Throttled background sync to prevent spamming the server
+      if (streamStatsSyncTimer) clearTimeout(streamStatsSyncTimer);
+      streamStatsSyncTimer = setTimeout(function () {
+        if (window.apiFetch) {
+          window.apiFetch('/stats').then(function(data) {
+            if (data && data.kpis) renderKpis(data.kpis);
+            if (data && data.recentQuotes) {
+              allScrapedQuotes = data.recentQuotes;
+              scheduleQuoteRender();
+            }
+          }).catch(function(e) { /* ignore */ });
+        }
+      }, 3500);
     });
   }
 

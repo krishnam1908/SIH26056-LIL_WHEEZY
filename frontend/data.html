@@ -193,7 +193,7 @@
           <h2 class="data-card-title">
             <span>🔄</span> <span>Autonomous Continuous Scraping Stream Engine</span>
           </h2>
-          <span class="data-card-subtitle">Continuous micro-batching: Scrapes $N$ quotes &rarr; commits to MongoDB Atlas &rarr; pauses cooldown &rarr; repeats indefinitely</span>
+          <span class="data-card-subtitle">Continuous high-speed scraping: 5 parallel workers stream live quotes &rarr; instant commit to MongoDB Atlas &rarr; live SSE feed</span>
         </div>
         <div>
           <span id="streamStatusBadge" class="data-badge-tag">⚪ Stream Idle</span>
@@ -214,10 +214,10 @@
         <div class="param-field">
           <label class="param-label">Inter-Batch Cooldown Delay</label>
           <select id="streamCooldownSelect" class="param-select">
-            <option value="2000">⏱️ 2 Seconds Cooldown</option>
-            <option value="3000" selected>⏱️ 3 Seconds (Recommended)</option>
+            <option value="1000" selected>⚡ 1 Second (Turbo Speed)</option>
+            <option value="2000">⏱️ 2 Seconds (Standard)</option>
+            <option value="3000">⏱️ 3 Seconds (Relaxed)</option>
             <option value="5000">⏱️ 5 Seconds Cooldown</option>
-            <option value="10000">⏱️ 10 Seconds Cooldown</option>
           </select>
         </div>
 

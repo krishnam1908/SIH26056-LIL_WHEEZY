@@ -37,7 +37,7 @@ class StreamEngine {
   constructor() {
     this.status = 'IDLE'; // 'IDLE', 'RUNNING', 'PAUSED', 'STOPPED'
     this.batchSize = 10;
-    this.cooldownMs = 2500;
+    this.cooldownMs = 1500;
     this.workerCount = 5;
     this.activeWorkers = 0;
     this.carriers = [...DEFAULT_CARRIERS];
@@ -285,7 +285,7 @@ class StreamEngine {
         const batch = this.buffer.splice(0, this.batchSize);
         await this._saveBatch(batch);
         if (this.status !== 'RUNNING') break;
-        await this._sleep(this.cooldownMs);
+        await this._sleep(150);
       }
 
       if (this.status !== 'RUNNING') continue;
@@ -356,7 +356,13 @@ class StreamEngine {
         const batch = this.buffer.splice(0, this.batchSize);
         await this._saveBatch(batch);
         if (this.status !== 'RUNNING') break;
-        await this._sleep(300);
+        await this._sleep(150);
+      }
+
+      // Step 5: Flush any trailing quotes in buffer immediately so none linger
+      if (this.buffer.length > 0 && this.status === 'RUNNING') {
+        const remaining = this.buffer.splice(0, this.buffer.length);
+        await this._saveBatch(remaining);
       }
 
       // Inter-sector cooldown delay before triggering the next sector
