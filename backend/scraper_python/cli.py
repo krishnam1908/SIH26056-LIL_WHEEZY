@@ -220,7 +220,8 @@ def run_api_mode(args):
         if save:
             config.database["enabled"] = True
         summary = run_scrape_job(input_data)
-        result = {"ok": True, "summary": summary}
+        fares = summary.pop("fares", [])
+        result = {"ok": True, "summary": summary, "fares": fares}
     except ValueError as err:
         result = {"ok": False, "status": 400, "error": str(err)}
         exit_code = 2

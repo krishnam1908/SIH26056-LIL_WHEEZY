@@ -441,6 +441,26 @@ async function scrape(req, res) {
   if (!parsed.ok) {
     return res.status(parsed.status || 500).json({ error: { message: parsed.error, status: parsed.status || 500 } });
   }
+
+  // Idempotently commit newly extracted quotes to MongoDB Atlas
+  let inserted = 0;
+  let skipped = 0;
+  if (Array.isArray(parsed.fares) && parsed.fares.length > 0) {
+    try {
+      const { saveFaresIdempotent } = require('../../utils/fareStore');
+      const saveRes = await saveFaresIdempotent(parsed.fares);
+      inserted = saveRes.insertedCount || 0;
+      skipped = saveRes.skippedCount || 0;
+      parsed.summary.mongoSaved = inserted;
+      parsed.summary.recordsSaved = inserted;
+      parsed.summary.duplicates = skipped;
+      parsed.summary.recentQuotes = parsed.fares.slice(0, 50);
+      console.log(`[Scraper Controller] 💾 Saved ${inserted} quotes to MongoDB Atlas (${skipped} deduplicated)`);
+    } catch (saveErr) {
+      console.error('[Scraper Controller] MongoDB save error:', saveErr.message);
+    }
+  }
+
   res.status(202).json(parsed.summary);
 }
 

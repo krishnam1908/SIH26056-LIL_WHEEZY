@@ -198,6 +198,7 @@ def scrape_one(combo, global_config, save):
 
         base_result["durationMs"] = _now_ms() - start
         base_result["endTime"] = _now_iso()
+        base_result["fares"] = valid_fares
 
         logger.info("[SCRAPE] success", {
             "source": combo["source"], "route": route, "date": format_utc_date(combo["travelDate"]),
@@ -231,6 +232,16 @@ def aggregate(job_id, started_at, ended_at, results, total_combos):
     successful = [r for r in results if r["status"] == "SUCCESS"]
     failed = [r for r in results if r["status"] == "ERROR"]
 
+    # Collect serialized fares for JSON output
+    all_fares = []
+    for r in results:
+        for f in r.get("fares", []):
+            item = dict(f)
+            for k in ('travelDate', 'collectionDate', 'scrapedAt'):
+                if k in item and hasattr(item[k], 'isoformat'):
+                    item[k] = item[k].isoformat()
+            all_fares.append(item)
+
     summary = {
         "jobId": job_id,
         "startedAt": started_at,
@@ -248,6 +259,7 @@ def aggregate(job_id, started_at, ended_at, results, total_combos):
         "invalidRecords": sum(r.get("invalid") or 0 for r in results),
         "outliers": sum(r.get("outliers") or 0 for r in results),
         "routes": results,
+        "fares": all_fares,
     }
     return summary
 

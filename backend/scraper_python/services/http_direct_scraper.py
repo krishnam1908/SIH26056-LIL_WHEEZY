@@ -16,6 +16,7 @@ HEADERS = {
     ),
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'en-IN,en;q=0.9',
+    'Cookie': 'CONSENT=YES+cb; SOCS=CAESEwgDEgk2OTg1MjYyMTgaAmVuIAEaBgiA_L20Bg'
 }
 
 AIRLINE_PREFIXES = {
@@ -69,7 +70,7 @@ def scrape_direct_http(airline_filter: str, origin: str, destination: str, trave
     date_str = str(travel_date).strip()[:10]
     route_str = f"{origin}-{destination}"
 
-    url = f"https://www.google.com/travel/flights?q=One%20way%20flights%20from%20{origin}%20to%20{destination}%20on%20{date_str}"
+    url = f"https://www.google.com/travel/flights?q=One%20way%20flights%20from%20{origin}%20to%20{destination}%20on%20{date_str}&hl=en&gl=in&curr=INR"
 
     try:
         resp = requests.get(url, headers=HEADERS, timeout=12)
@@ -104,16 +105,25 @@ def scrape_direct_http(airline_filter: str, origin: str, destination: str, trave
             .replace('&nbsp;', ' ')
         )
 
-        # Extract price
-        price_match = re.search(r'(?:From\s+)?(\d[\d,]*)\s+Indian rupees', label, re.IGNORECASE)
-        if not price_match:
-            continue
-        try:
-            total_fare = int(price_match.group(1).replace(',', ''))
-        except (ValueError, TypeError):
-            continue
+        # Extract price (supports Indian rupees, INR, and USD fallback)
+        total_fare = None
+        price_match = re.search(r'(?:From\s+)?(?:₹\s*)?(\d[\d,]*)\s*(?:Indian rupees|rupees|INR|₹)', label, re.IGNORECASE)
+        if price_match:
+            try:
+                total_fare = int(price_match.group(1).replace(',', ''))
+            except (ValueError, TypeError):
+                pass
 
-        if total_fare < 1500 or total_fare > 100000:
+        if not total_fare:
+            usd_match = re.search(r'(?:From\s+)?(?:\$\s*)?(\d[\d,]*)\s*(?:US dollars|dollars|USD|\$)', label, re.IGNORECASE)
+            if usd_match:
+                try:
+                    usd_val = int(usd_match.group(1).replace(',', ''))
+                    total_fare = int(usd_val * 87)
+                except (ValueError, TypeError):
+                    pass
+
+        if not total_fare or total_fare < 1500 or total_fare > 100000:
             continue
 
         # Extract carrier (check Air India Express before Air India)
@@ -230,14 +240,25 @@ def scrape_direct_http(airline_filter: str, origin: str, destination: str, trave
                 .replace('\xa0', ' ')
                 .replace('&nbsp;', ' ')
             )
-            price_match = re.search(r'(?:From\s+)?(\d[\d,]*)\s+Indian rupees', label, re.IGNORECASE)
-            if not price_match:
-                continue
-            try:
-                total_fare = int(price_match.group(1).replace(',', ''))
-            except (ValueError, TypeError):
-                continue
-            if total_fare < 1500 or total_fare > 100000:
+            # Extract price (supports Indian rupees, INR, and USD fallback)
+            total_fare = None
+            price_match = re.search(r'(?:From\s+)?(?:₹\s*)?(\d[\d,]*)\s*(?:Indian rupees|rupees|INR|₹)', label, re.IGNORECASE)
+            if price_match:
+                try:
+                    total_fare = int(price_match.group(1).replace(',', ''))
+                except (ValueError, TypeError):
+                    pass
+
+            if not total_fare:
+                usd_match = re.search(r'(?:From\s+)?(?:\$\s*)?(\d[\d,]*)\s*(?:US dollars|dollars|USD|\$)', label, re.IGNORECASE)
+                if usd_match:
+                    try:
+                        usd_val = int(usd_match.group(1).replace(',', ''))
+                        total_fare = int(usd_val * 87)
+                    except (ValueError, TypeError):
+                        pass
+
+            if not total_fare or total_fare < 1500 or total_fare > 100000:
                 continue
 
             matched_carrier = None
