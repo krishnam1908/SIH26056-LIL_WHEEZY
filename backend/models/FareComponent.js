@@ -19,7 +19,7 @@ const fareComponentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-fareComponentSchema.index({ type: 1, airportCode: 1 }, { unique: true, sparse: true });
-fareComponentSchema.index({ type: 1, airline: 1 }, { unique: true, sparse: true });
+fareComponentSchema.index({ type: 1, airportCode: 1 }, { unique: true, partialFilterExpression: { airportCode: { $exists: true } } });
+fareComponentSchema.index({ type: 1, airline: 1 }, { unique: true, partialFilterExpression: { airline: { $exists: true } } });
 
 module.exports = mongoose.model('FareComponent', fareComponentSchema);
