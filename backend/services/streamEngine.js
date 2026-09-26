@@ -356,12 +356,12 @@ class StreamEngine {
         const batch = this.buffer.splice(0, this.batchSize);
         await this._saveBatch(batch);
         if (this.status !== 'RUNNING') break;
-        await this._sleep(this.cooldownMs);
+        await this._sleep(300);
       }
 
-      // Short delay before triggering the next sector across the 5 workers
+      // Inter-sector cooldown delay before triggering the next sector
       if (this.status === 'RUNNING') {
-        await this._sleep(1500);
+        await this._sleep(this.cooldownMs);
       }
     }
 

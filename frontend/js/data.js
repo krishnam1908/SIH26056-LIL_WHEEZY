@@ -589,6 +589,16 @@
     });
   }
 
+  var quoteRenderPending = false;
+  function scheduleQuoteRender() {
+    if (quoteRenderPending) return;
+    quoteRenderPending = true;
+    requestAnimationFrame(function () {
+      quoteRenderPending = false;
+      renderQuotes(getFilteredQuotes());
+    });
+  }
+
   window.addEventListener('apix_quote_update', function (e) {
     var item = e.detail;
     if (!item) return;
@@ -596,17 +606,19 @@
     item.isLive = true;
     if (!item.source) item.source = 'stream';
     liveSseQuotes.unshift(item);
+    if (liveSseQuotes.length > 500) {
+      liveSseQuotes.length = 500;
+    }
 
     var logBox = document.getElementById('scrape-terminal-log');
     if (logBox) {
-      logBox.style.display = 'block';
       var timestamp = new Date().toLocaleTimeString('en-GB');
       var line = '\n[' + timestamp + ' SSE STREAM] Real-time quote: ' + (item.airline || 'Carrier') + ' (' + (item.flightNumber || 'FLIGHT') + ') ' + (item.origin || '') + '-' + (item.destination || '') + ' \u20B9' + (item.totalFare || 0).toLocaleString('en-IN') + (item.surge ? ' 🚨 SURGE' : '');
       logBox.textContent += line;
       logBox.scrollTop = logBox.scrollHeight;
     }
 
-    renderQuotes(getFilteredQuotes());
+    scheduleQuoteRender();
   });
 
   function updateStreamUI(status) {

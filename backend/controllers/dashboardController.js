@@ -3,12 +3,33 @@
 const Fare = require('../scraper/models/Fare');
 const { validateFareRealtime } = require('../services/otaValidator');
 
+let cachedStats = null;
+let cachedStatsExpiry = 0;
+const STATS_TTL = 10 * 1000; // 10 seconds
+
+let cachedMeta = null;
+let cachedMetaExpiry = 0;
+const META_TTL = 60 * 1000; // 60 seconds
+
+function invalidateDashboardCache() {
+  cachedStats = null;
+  cachedStatsExpiry = 0;
+  cachedMeta = null;
+  cachedMetaExpiry = 0;
+}
+
 /**
  * GET /api/stats
  * Single-pass MongoDB $facet aggregation for sub-50ms KPI calculation.
  */
 async function getStats(req, res) {
   const minIso = req.query.from || null;
+  const now = Date.now();
+
+  if (!minIso && cachedStats && now < cachedStatsExpiry) {
+    return res.json(cachedStats);
+  }
+
   const minDateObj = minIso ? new Date(`${minIso}T00:00:00.000Z`) : null;
   const dateMatch = minIso
     ? { $or: [{ travelDate: { $gte: minIso } }, { travelDate: { $gte: minDateObj } }] }
@@ -179,7 +200,14 @@ async function getStats(req, res) {
     airlineComparison: airlineComparisonResult,
     recentQuotes,
     count: recentQuotes.length
-  });
+  };
+
+  if (!minIso) {
+    cachedStats = payload;
+    cachedStatsExpiry = Date.now() + STATS_TTL;
+  }
+
+  res.json(payload);
 }
 
 /**
@@ -187,6 +215,12 @@ async function getStats(req, res) {
  */
 async function getMeta(req, res) {
   const minIso = req.query.from || null;
+  const now = Date.now();
+
+  if (!minIso && cachedMeta && now < cachedMetaExpiry) {
+    return res.json(cachedMeta);
+  }
+
   const minDateObj = minIso ? new Date(`${minIso}T00:00:00.000Z`) : null;
   const dateMatch = minIso
     ? { $or: [{ travelDate: { $gte: minIso } }, { travelDate: { $gte: minDateObj } }] }
@@ -243,7 +277,7 @@ async function getMeta(req, res) {
   const totalRoutesCount = (pairsResult || []).length;
   const totalCitiesCount = allAirports.length;
 
-  res.json({
+  const payload = {
     success: true,
     origins: validOrigins,
     destinations: validDestinations,
@@ -258,7 +292,14 @@ async function getMeta(req, res) {
       min: dates[0] ? `${dates[0]}T00:00:00.000Z` : null,
       max: dates[dates.length - 1] ? `${dates[dates.length - 1]}T23:59:59.999Z` : null
     }
-  });
+  };
+
+  if (!minIso) {
+    cachedMeta = payload;
+    cachedMetaExpiry = Date.now() + META_TTL;
+  }
+
+  res.json(payload);
 }
 
 function leadTimeLabel(advanceDays) {
@@ -270,4 +311,4 @@ function leadTimeLabel(advanceDays) {
   return 'T+45';
 }
 
-module.exports = { getStats, getMeta };
+module.exports = { getStats, getMeta, invalidateDashboardCache };

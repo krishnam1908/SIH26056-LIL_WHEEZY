@@ -88,10 +88,14 @@ const fareSchema = new mongoose.Schema(
 fareSchema.index({ origin: 1, destination: 1, travelDate: 1, source: 1 });
 fareSchema.index({ route: 1 });
 
-// Convenience index for the API query layer
+// High-performance query and sorting indexes
 fareSchema.index({ travelDate: 1 });
 fareSchema.index({ airline: 1, fareClass: 1, availability: 1, dataQuality: 1 });
 fareSchema.index({ totalFare: 1 });
+fareSchema.index({ updatedAt: -1 });
+fareSchema.index({ scrapedAt: -1 });
+fareSchema.index({ route: 1, totalFare: 1 });
+fareSchema.index({ totalFare: 1, advanceDays: 1 });
 
 fareSchema.virtual('id').get(function getVirtualId() {
   return this._id ? this._id.toString() : null;
