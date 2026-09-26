@@ -181,7 +181,7 @@ async function getStats(req, res) {
 
   const outliersRemoved = Math.max(outlierCount, totalQuotes - validCount);
 
-  res.json({
+  const payload = {
     success: true,
     kpis: {
       totalQuotes,
