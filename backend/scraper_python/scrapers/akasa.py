@@ -772,12 +772,19 @@ class AkasaScraper(BaseScraper):
         else:
             availability = "NOT_FOUND" if statuses else "AVAILABLE"
 
+        dep_str = first.get("departure") or ""
+        arr_str = last.get("arrival") or ""
+        dep_time = dep_str[11:16] if len(dep_str) >= 16 else None
+        arr_time = arr_str[11:16] if len(arr_str) >= 16 else None
+
         raw = {
             "origin": first.get("origin") or context.get("origin"),
             "destination": last.get("destination") or context.get("destination"),
             "travelDate": raw_flight.get("tripDate") or context.get("travelDate"),
             "airline": "Akasa Air",
             "flightNumber": first.get("flightNumber"),
+            "departureTime": dep_time,
+            "arrivalTime": arr_time,
             "fareClass": best.get("classOfService") if best else None,
             "baseFare": best.get("baseFare") if best else None,
             "taxes": best.get("taxes") if best else None,
