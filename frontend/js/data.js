@@ -450,7 +450,7 @@
       setActiveTab('scraped');
     }
 
-    var triggerBtns = document.querySelectorAll('.btn-scrape-trigger');
+    var triggerBtns = document.querySelectorAll('.scraper-quick-actions .btn-scrape-trigger, #btnRunMasterDateScrape');
     triggerBtns.forEach(function (btn) {
       btn.disabled = true;
       if (!btn.dataset.origText) btn.dataset.origText = btn.innerHTML;
@@ -680,6 +680,7 @@
     var btnStart = document.getElementById('btnStartStream');
     var btnPause = document.getElementById('btnPauseStream');
     var btnStop = document.getElementById('btnStopStream');
+    var badge = document.getElementById('streamStatusBadge');
     var selBatch = document.getElementById('streamBatchSizeSelect');
     var selCool = document.getElementById('streamCooldownSelect');
     var logBox = document.getElementById('scrape-terminal-log');
@@ -707,7 +708,8 @@
       btnStart.addEventListener('click', function() {
         var bSize = selBatch ? parseInt(selBatch.value, 10) : 10;
         var cDown = selCool ? parseInt(selCool.value, 10) : 3000;
-        var isPaused = badge && badge.textContent && badge.textContent.indexOf('Paused') !== -1;
+        var badgeEl = document.getElementById('streamStatusBadge');
+        var isPaused = badgeEl && badgeEl.textContent && badgeEl.textContent.indexOf('Paused') !== -1;
 
         if (logBox) {
           logBox.style.display = 'block';
@@ -741,6 +743,7 @@
     if (btnPause) {
       btnPause.addEventListener('click', function() {
         if (logBox) {
+          logBox.style.display = 'block';
           logBox.textContent += '\n[STREAM ENGINE] Pausing continuous stream...';
           logBox.scrollTop = logBox.scrollHeight;
         }
@@ -755,6 +758,7 @@
     if (btnStop) {
       btnStop.addEventListener('click', function() {
         if (logBox) {
+          logBox.style.display = 'block';
           logBox.textContent += '\n[STREAM ENGINE] Stopping continuous stream worker pool.';
           logBox.scrollTop = logBox.scrollHeight;
         }
@@ -804,7 +808,7 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function bootDataEngine() {
     initReceiptModalEvents();
     initCronSchedulerEvents();
     initStreamEngineEvents();
@@ -838,5 +842,11 @@
       renderQuotes(getFilteredQuotes());
       console.error('Data Monitor failed to load:', err);
     });
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootDataEngine);
+  } else {
+    bootDataEngine();
+  }
 })();
