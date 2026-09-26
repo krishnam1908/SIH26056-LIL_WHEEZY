@@ -167,8 +167,9 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 if (require.main === module && !process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`Airfare Index server running on http://localhost:${PORT}`);
+  const host = '0.0.0.0';
+  app.listen(PORT, host, () => {
+    console.log(`Airfare Index server running on http://${host}:${PORT}`);
   });
 }
 
