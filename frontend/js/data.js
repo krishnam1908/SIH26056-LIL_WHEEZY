@@ -707,19 +707,32 @@
       btnStart.addEventListener('click', function() {
         var bSize = selBatch ? parseInt(selBatch.value, 10) : 10;
         var cDown = selCool ? parseInt(selCool.value, 10) : 3000;
+        var isPaused = badge && badge.textContent && badge.textContent.indexOf('Paused') !== -1;
 
         if (logBox) {
           logBox.style.display = 'block';
-          logBox.textContent += '\n[STREAM ENGINE] Starting autonomous continuous stream (Target: ' + bSize + ' quotes/batch, Cooldown: ' + (cDown/1000) + 's)...';
+          logBox.textContent += '\n[STREAM ENGINE] ' + (isPaused ? 'Resuming' : 'Starting') + ' autonomous continuous stream (Target: ' + bSize + ' quotes/batch, Cooldown: ' + (cDown/1000) + 's)...';
           logBox.scrollTop = logBox.scrollHeight;
         }
 
         if (window.apiFetch) {
-          window.apiFetch('/stream/start', {
+          var endpoint = isPaused ? '/stream/resume' : '/stream/start';
+          window.apiFetch(endpoint, {
             method: 'POST',
             body: JSON.stringify({ batchSize: bSize, cooldownMs: cDown })
           }).then(function(res) {
             if (res && res.stream) updateStreamUI(res.stream);
+          }).catch(function(err) {
+            console.warn('Stream start/resume error:', err);
+            // Fallback to /stream/start
+            if (isPaused) {
+              window.apiFetch('/stream/start', {
+                method: 'POST',
+                body: JSON.stringify({ batchSize: bSize, cooldownMs: cDown })
+              }).then(function(res) {
+                if (res && res.stream) updateStreamUI(res.stream);
+              });
+            }
           });
         }
       });

@@ -158,7 +158,7 @@ class StreamEngine {
   }
 
   resume() {
-    if (this.status === 'PAUSED') {
+    if (this.status === 'PAUSED' || this.status === 'STOPPED') {
       this.status = 'RUNNING';
       console.log('[StreamEngine] Continuous stream resumed.');
       this.broadcast('stream_status', this.getStatus());
@@ -186,12 +186,18 @@ class StreamEngine {
     });
   }
 
+  _getPythonBin() {
+    if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
+    return process.platform === 'win32' ? 'python' : 'python3';
+  }
+
   _fetchCell(carrier, origin, destination, travelDate) {
     return new Promise(resolve => {
       const scriptPath = path.join(__dirname, '..', 'scraper_python', 'stream_fetcher.py');
       const rootDir = path.join(__dirname, '..', '..');
+      const pythonBin = this._getPythonBin();
 
-      const child = spawn('python', [scriptPath, carrier, origin, destination, travelDate], {
+      const child = spawn(pythonBin, [scriptPath, carrier, origin, destination, travelDate], {
         cwd: rootDir,
         shell: process.platform === 'win32'
       });
@@ -203,19 +209,24 @@ class StreamEngine {
       child.stderr.on('data', d => { stderr += d; });
 
       child.on('close', code => {
+        if (code !== 0 && stderr) {
+          console.warn(`[StreamEngine] Scraper ${carrier} non-zero exit (${code}):`, stderr.slice(0, 300));
+        }
         try {
           const parsed = JSON.parse(stdout.trim());
           if (parsed && Array.isArray(parsed.fares)) {
             return resolve(parsed.fares);
           }
         } catch (e) {
-          // ignore parsing error
+          if (stdout.trim().length > 0) {
+            console.warn(`[StreamEngine] JSON parse error for ${carrier}:`, e.message, stdout.slice(0, 200));
+          }
         }
         resolve([]);
       });
 
       child.on('error', err => {
-        console.warn(`[StreamEngine] fetch cell error (${carrier} ${origin}-${destination}):`, err.message);
+        console.error(`[StreamEngine] fetch cell error (${carrier} ${origin}-${destination} using ${pythonBin}):`, err.message);
         resolve([]);
       });
     });
@@ -277,7 +288,7 @@ class StreamEngine {
         await this._sleep(this.cooldownMs);
       }
 
-      if (this.status !== 'RUNNING') break;
+      if (this.status !== 'RUNNING') continue;
 
       // Step 2: Select next target route and travel date
       const activeRoutes = this.routes.length > 0 ? this.routes : DEFAULT_ROUTES;
