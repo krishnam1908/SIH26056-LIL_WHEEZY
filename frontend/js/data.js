@@ -543,15 +543,48 @@
         })
       }).then(function (res) {
         var elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
-        logBox.textContent += '\n✅ [SUCCESS] Real-World Live Scrape Completed in ' + elapsedSec + 's!';
-        if (res && res.flightsFound) {
-          logBox.textContent += ' Extracted ' + res.flightsFound + ' 100% REAL flight quotes from live booking engines.\n';
-        } else {
-          logBox.textContent += ' Processed live extraction pipeline successfully.\n';
-        }
         var engineDesc = carrierOverride && carrierMeta[carrierOverride] ? carrierMeta[carrierOverride].engine : 'Zero-Playwright Direct REST & HTTP Cluster';
-        logBox.textContent += '⏱️ [LATENCY] Response time: ' + elapsedSec + 's | Engine: ' + engineDesc + ' | Target: ' + carrierDisplay + '\n';
-        logBox.textContent += '💾 Real flight fares validated, normalized, and stored into MongoDB Atlas.\n';
+
+        var count = 0;
+        if (res) {
+          if (typeof res.flightsFound === 'number') {
+            count = res.flightsFound;
+          } else if (Array.isArray(res.recentQuotes)) {
+            count = res.recentQuotes.length;
+          } else if (Array.isArray(res.fares)) {
+            count = res.fares.length;
+          }
+        }
+
+        var alertEl = document.getElementById('scrapeResultAlert');
+
+        if (count === 0) {
+          logBox.textContent += '\n⚠️ [RESULT] 0 flights scraped for ' + carrierDisplay + ' on ' + routeDisplay + ' (' + travelDates.join(', ') + ').\n';
+          logBox.textContent += '⏱️ [LATENCY] Response time: ' + elapsedSec + 's | Engine: ' + engineDesc + ' | Target: ' + carrierDisplay + '\n';
+          logBox.textContent += 'ℹ️ [NOTICE] 0 flights scraped — No direct or scheduled flights operated by ' + carrierDisplay + ' on ' + routeDisplay + ' for the selected date.\n';
+          logBox.textContent += '💾 0 records saved to MongoDB Atlas (no live fares extracted for this sector/date).\n';
+
+          if (alertEl) {
+            alertEl.style.display = 'block';
+            alertEl.style.background = 'rgba(239, 68, 68, 0.12)';
+            alertEl.style.border = '1px solid rgba(239, 68, 68, 0.35)';
+            alertEl.style.color = '#f87171';
+            alertEl.innerHTML = '⚠️ <strong>0 flights scraped:</strong> No direct or scheduled flights found for <strong>' + escapeHtml(carrierDisplay) + '</strong> on route <strong>' + escapeHtml(routeDisplay) + '</strong> for ' + escapeHtml(travelDates.join(', ')) + '. Database remains intact.';
+          }
+        } else {
+          logBox.textContent += '\n✅ [SUCCESS] Real-World Live Scrape Completed in ' + elapsedSec + 's! Extracted ' + count + ' 100% REAL flight quotes from live booking engines.\n';
+          logBox.textContent += '⏱️ [LATENCY] Response time: ' + elapsedSec + 's | Engine: ' + engineDesc + ' | Target: ' + carrierDisplay + '\n';
+          var savedMsg = (res && res.mongoSaved !== undefined) ? res.mongoSaved : count;
+          logBox.textContent += '💾 ' + savedMsg + ' real flight fares validated, normalized, and stored into MongoDB Atlas.\n';
+
+          if (alertEl) {
+            alertEl.style.display = 'block';
+            alertEl.style.background = 'rgba(16, 185, 129, 0.12)';
+            alertEl.style.border = '1px solid rgba(16, 185, 129, 0.35)';
+            alertEl.style.color = '#34d399';
+            alertEl.innerHTML = '✅ <strong>' + count + ' flight quotes scraped successfully!</strong> Fresh fares for <strong>' + escapeHtml(carrierDisplay) + '</strong> (' + escapeHtml(routeDisplay) + ') loaded at the top of the table.';
+          }
+        }
         logBox.scrollTop = logBox.scrollHeight;
 
         if (carrierOverride && carrierMeta[carrierOverride]) {
@@ -599,6 +632,10 @@
           var tableEl = document.querySelector('.quotes-data-table');
           if (tableEl) {
             tableEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        } else {
+          if (alertEl) {
+            alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
         }
 

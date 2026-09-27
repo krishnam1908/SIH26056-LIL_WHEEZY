@@ -445,8 +445,9 @@ async function scrape(req, res) {
   // Idempotently commit newly extracted quotes to MongoDB Atlas
   let inserted = 0;
   let skipped = 0;
+  parsed.summary = parsed.summary || {};
   if (Array.isArray(parsed.fares) && parsed.fares.length > 0) {
-    parsed.summary = parsed.summary || {};
+    parsed.summary.flightsFound = parsed.fares.length;
     parsed.summary.recentQuotes = parsed.fares.slice(0, 50);
     parsed.summary.fares = parsed.fares;
     try {
@@ -461,6 +462,14 @@ async function scrape(req, res) {
     } catch (saveErr) {
       console.error('[Scraper Controller] MongoDB save error:', saveErr.message);
     }
+  } else {
+    parsed.summary.flightsFound = 0;
+    parsed.summary.recentQuotes = [];
+    parsed.summary.fares = [];
+    parsed.summary.mongoSaved = 0;
+    parsed.summary.recordsSaved = 0;
+    parsed.summary.duplicates = 0;
+    console.log('[Scraper Controller] ⚠️ 0 flights found for requested sector/date');
   }
 
   try {
