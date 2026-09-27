@@ -97,7 +97,7 @@ async function getStats(req, res) {
     ]),
     Fare.findOne(dateMatch).sort({ updatedAt: -1 }).select('updatedAt scrapedAt').lean(),
     Fare.find({ totalFare: { $ne: null }, ...dateMatch })
-      .sort({ _id: -1 })
+      .sort({ updatedAt: -1, scrapedAt: -1, _id: -1 })
       .limit(150)
       .select(
         'route origin destination airline flightNumber travelDate collectionDate advanceDays baseFare taxes udf convenienceFee totalFare availability dataQuality source'

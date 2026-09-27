@@ -1797,7 +1797,22 @@ async function saveFaresIdempotent(fares) {
     bulkOps.push({
       updateOne: {
         filter: { dedupeKey },
-        update: { $setOnInsert: doc },
+        update: {
+          $set: {
+            updatedAt: new Date(),
+            scrapedAt: f.scrapedAt ? new Date(f.scrapedAt) : new Date(),
+            totalFare: totalFare,
+            baseFare: f.baseFare || Math.round((totalFare - udfValue - convValue) * 0.95),
+            taxes: f.taxes || Math.round((totalFare - udfValue - convValue) * 0.05),
+            udf: udfValue,
+            convenienceFee: convValue,
+            departureTime: doc.departureTime,
+            arrivalTime: doc.arrivalTime,
+            availability: f.availability || 'AVAILABLE',
+            dataQuality: doc.dataQuality
+          },
+          $setOnInsert: doc
+        },
         upsert: true
       }
     });
@@ -1811,12 +1826,10 @@ async function saveFaresIdempotent(fares) {
     const res = await Fare.bulkWrite(bulkOps, { ordered: false });
     const insertedCount = res.upsertedCount || 0;
     const skippedCount = res.matchedCount || 0;
-    if (insertedCount > 0) {
-      try {
-        const { invalidateDashboardCache } = require('../controllers/dashboardController');
-        invalidateDashboardCache();
-      } catch (e) { /* ignore */ }
-    }
+    try {
+      const { invalidateDashboardCache } = require('../controllers/dashboardController');
+      invalidateDashboardCache();
+    } catch (e) { /* ignore */ }
     return { insertedCount, skippedCount };
   } catch (err) {
     console.error('saveFaresIdempotent warning:', err.message);

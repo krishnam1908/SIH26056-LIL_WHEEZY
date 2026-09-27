@@ -47,13 +47,23 @@
     } else if (currentTab === 'scraped') {
       return allScrapedQuotes;
     } else if (currentTab === 'surge') {
-      var combined = (liveSseQuotes || []).concat(allScrapedQuotes || []);
+      var combined = (allScrapedQuotes || []).concat(liveSseQuotes || []);
       return combined.filter(function (q) {
         return (q.totalFare && q.totalFare >= 15000) || q.surge;
       });
     }
-    // Default: 'all' -> Live quotes prepended on top of database quotes
-    return (liveSseQuotes || []).concat(allScrapedQuotes || []);
+    // Default: 'all' -> Return allScrapedQuotes with any distinct live stream quotes
+    var seen = {};
+    var list = [];
+    (allScrapedQuotes || []).concat(liveSseQuotes || []).forEach(function (q) {
+      var r = q.route || ((q.origin || '') + '-' + (q.destination || ''));
+      var k = r + '|' + (q.flightNumber || '') + '|' + (q.travelDate ? String(q.travelDate).slice(0, 10) : '');
+      if (!seen[k]) {
+        seen[k] = true;
+        list.push(q);
+      }
+    });
+    return list;
   }
 
   var AIRPORT_UDF_MAP = {};
@@ -168,7 +178,12 @@
     var body = document.getElementById('recent-quotes-body');
     if (!body) return;
 
-    renderDataPaginationControls(quotes ? quotes.length : 0);
+    var totalItems = quotes ? quotes.length : 0;
+    var totalPages = Math.max(1, Math.ceil(totalItems / dataPageState.pageSize));
+    if (dataPageState.currentPage > totalPages) dataPageState.currentPage = 1;
+    if (dataPageState.currentPage < 1) dataPageState.currentPage = 1;
+
+    renderDataPaginationControls(totalItems);
 
     if (!quotes || !quotes.length) {
       var emptyMsg = 'No flight quotes available.';
@@ -546,12 +561,65 @@
 
         resetButtons();
 
+        // 1. Immediately inject freshly scraped quotes from this scrape run into the table!
+        var freshQuotes = (res && (res.recentQuotes || res.fares)) || [];
+        if (freshQuotes.length > 0) {
+          var formattedFresh = freshQuotes.map(function (q) {
+            var item = Object.assign({}, q);
+            item.isNewScrape = true;
+            item.isLive = true;
+            if (!item.source || item.source === 'scraper') {
+              item.source = (q.airline ? q.airline.toLowerCase().replace(/\s+/g, '') : 'scraper');
+            }
+            return item;
+          });
+
+          // Prepend newly scraped quotes to the top of allScrapedQuotes
+          var freshKeys = {};
+          formattedFresh.forEach(function (q) {
+            var k = (q.route || (q.origin + '-' + q.destination)) + '|' + (q.flightNumber || '') + '|' + (q.travelDate ? String(q.travelDate).slice(0, 10) : '');
+            freshKeys[k] = true;
+          });
+
+          allScrapedQuotes = formattedFresh.concat(allScrapedQuotes.filter(function (existing) {
+            var k = (existing.route || (existing.origin + '-' + existing.destination)) + '|' + (existing.flightNumber || '') + '|' + (existing.travelDate ? String(existing.travelDate).slice(0, 10) : '');
+            return !freshKeys[k];
+          }));
+
+          liveSseQuotes = formattedFresh.concat(liveSseQuotes.filter(function (existing) {
+            var k = (existing.route || (existing.origin + '-' + existing.destination)) + '|' + (existing.flightNumber || '') + '|' + (existing.travelDate ? String(existing.travelDate).slice(0, 10) : '');
+            return !freshKeys[k];
+          }));
+
+          // Reset page to 1 so the newly scraped quotes are immediately visible
+          dataPageState.currentPage = 1;
+          renderQuotes(getFilteredQuotes());
+
+          // Smoothly scroll down to the quotes table so the user sees the newly populated data
+          var tableEl = document.querySelector('.quotes-data-table');
+          if (tableEl) {
+            tableEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+
         return window.apiFetch('/stats');
       }).then(function (data) {
-        if (data && data.recentQuotes) {
-          allScrapedQuotes = data.recentQuotes;
-          renderQuotes(getFilteredQuotes());
+        if (data) {
           if (data.kpis) renderKpis(data.kpis);
+          if (data.recentQuotes && data.recentQuotes.length > 0) {
+            // Keep fresh quotes at the top, merge background DB quotes below
+            var currentKeys = {};
+            allScrapedQuotes.forEach(function (q) {
+              var k = (q.route || (q.origin + '-' + q.destination)) + '|' + (q.flightNumber || '') + '|' + (q.travelDate ? String(q.travelDate).slice(0, 10) : '');
+              currentKeys[k] = true;
+            });
+            var older = data.recentQuotes.filter(function (q) {
+              var k = (q.route || (q.origin + '-' + q.destination)) + '|' + (q.flightNumber || '') + '|' + (q.travelDate ? String(q.travelDate).slice(0, 10) : '');
+              return !currentKeys[k];
+            });
+            allScrapedQuotes = allScrapedQuotes.concat(older);
+            renderQuotes(getFilteredQuotes());
+          }
         }
       }).catch(function (err) {
         var elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
