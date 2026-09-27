@@ -7,7 +7,7 @@ An integrated, production-grade macroeconomic intelligence platform and real-tim
 Computes daily **Laspeyres**, **Paasche**, and **Fisher Ideal** geometric mean inflation indices, **STL seasonal adjustment filters**, **ARIMA time-series machine learning forecasts**, and provides an **Interactive SVG Route Network Map** with automated nationwide flight tours.
 
 ```
-Live Booking Engines (Playwright Web Stream & Reverse-Engineered IBE REST APIs)
+Live Booking Engines (Direct HTTP REST & Reverse-Engineered IBE REST APIs)
    ↓  Autonomous Continuous Stream Engine · Residential Proxy Mesh (5 Nodes) · SHA1 Dedupe
 MongoDB Atlas  (flight_fares.fares  -  15,121+ Documents)
    ↓
@@ -26,7 +26,7 @@ Frontend Dashboard  (Vanilla HTML5 / CSS3 / ES6 JS / SVG Map Engine)
 |---|---|---|
 | **Frontend** | HTML5, Vanilla CSS3, Vanilla ES6 JS | Zero external UI dependencies, dynamic SVG route map with `<animateMotion>` airplane looping animation, dark/light themes, KaTeX math typesetting. |
 | **Backend** | Node.js, Express.js | High-speed REST APIs, Server-Sent Events (SSE) streaming (`/api/stream`), 15s in-memory caching layer. |
-| **Scraper Infrastructure** | Hybrid Python Playwright + Node.js Adapters | Playwright headless browser automation, Akasa REST IBE direct connectors (~2s response), anti-detection TLS fingerprints. |
+| **Scraper Infrastructure** | Hybrid Python Direct HTTP + Node.js Adapters | Zero-Playwright Direct HTTP REST scrapers (~1.1s response), Akasa REST IBE direct connectors (~0.5s response), anti-detection TLS fingerprints. |
 | **Autonomous Stream Engine** | Continuous Worker Loop (`streamEngine.js`) | Background route rotation, live quote broadcasting, REST lifecycle controls (`/api/stream/start`, `pause`, `resume`, `stop`). |
 | **Analytical Engine** | NSO / MoSPI Dual-Index Engine (`indexEngine.js`) | Laspeyres ($I_L$), Paasche ($I_P$), Fisher Ideal ($I_F$) indices, STL Day-of-Week Seasonal Decomposition ($SA_t = Y_t / S_t$). |
 | **Forecasting Engine** | ARIMA $(p,d,q)$ + Seasonal Model (`arimaEngine.js`) | 7, 14, and 30-day forecast horizons, 95% Confidence Intervals, surge pricing alerts (+12%, +22%, +35%), 5-axis Route Outage Vulnerability Radar. |
@@ -79,7 +79,7 @@ Frontend Dashboard  (Vanilla HTML5 / CSS3 / ES6 JS / SVG Map Engine)
 [1. Input Matrix] → [2. Proxy Mesh & Evasion] → [3. Schema Extraction] → [4. QA & Outliers] → [5. SHA1 Dedupe] → [6. DB Upsert & SSE Stream]
 ```
 1. **Input Normalization & Matrix Expansion (`normalize_input`)**: Expands requested route pairs, travel dates, and airline source adapters into a Cartesian execution matrix with strict 3-letter IATA code validation and route-isolated failure boundaries.
-2. **Anti-Detection, Proxy Routing & Evasion (`proxyMeshService`)**: Rotates requests across 5 regional Indian proxy nodes (`IN-DEL`, `IN-BOM`, `IN-BLR`, `IN-CCU`, `IN-HYD`) with HTTP/2 TLS Client Hello fingerprint randomization, Chrome CDP network interception (Playwright), or direct IBE REST execution.
+2. **Anti-Detection, Proxy Routing & Evasion (`proxyMeshService`)**: Rotates requests across 5 regional Indian proxy nodes (`IN-DEL`, `IN-BOM`, `IN-BLR`, `IN-CCU`, `IN-HYD`) with HTTP/2 TLS Client Hello fingerprint randomization, high-speed direct HTTP REST scraping (`http_direct_scraper.py`), or direct IBE REST execution.
 3. **Data Extraction & Price Decomposition**: Unbundles airline search results into canonical fare fields: `baseFare`, `taxes`, `udfFee`, `convenienceFee`, and `totalFare` in INR currency alongside flight metadata.
 4. **Validation & Outlier Quality Rules (`fare_validator`, `outlier_detector`)**: Enforces hard price boundaries ($\text{₹}100 \le P_{\text{total}} \le \text{₹}100,000$) and fee consistency ($|P_{\text{total}} - \sum P_{\text{comp}}| \le \max(\text{₹}100, 0.20 \cdot P_{\text{total}})$), tagging non-standard quotes with `dataQuality: 'OUTLIER'`.
 5. **Cryptographic Deduplication (`attach_dedupe_keys`)**: Computes deterministic SHA1 hash keys `SHA1(origin|dest|date|airline|flightNo|class|source)` to guarantee idempotent writes.

@@ -534,7 +534,7 @@
         } else {
           logBox.textContent += ' Processed live extraction pipeline successfully.\n';
         }
-        var engineDesc = carrierOverride && carrierMeta[carrierOverride] ? carrierMeta[carrierOverride].engine : 'Hybrid Cluster (Direct REST & Playwright)';
+        var engineDesc = carrierOverride && carrierMeta[carrierOverride] ? carrierMeta[carrierOverride].engine : 'Zero-Playwright Direct REST & HTTP Cluster';
         logBox.textContent += '⏱️ [LATENCY] Response time: ' + elapsedSec + 's | Engine: ' + engineDesc + ' | Target: ' + carrierDisplay + '\n';
         logBox.textContent += '💾 Real flight fares validated, normalized, and stored into MongoDB Atlas.\n';
         logBox.scrollTop = logBox.scrollHeight;

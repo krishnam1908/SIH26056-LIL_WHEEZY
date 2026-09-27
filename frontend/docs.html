@@ -319,7 +319,7 @@
                 <!-- Stage 2 -->
                 <div style="border-left: 3px solid #8b5cf6; padding-left: 14px;">
                   <strong style="color: #a78bfa;">Stage 2  -  Anti-Detection, Proxy Routing &amp; Network Evasion:</strong>
-                  <p style="margin-top: 4px; margin-bottom: 0;">Dispatches network requests through the 5-node residential proxy mesh (<code>IN-DEL</code>, <code>IN-BOM</code>, <code>IN-BLR</code>, <code>IN-CCU</code>, <code>IN-HYD</code>) with HTTP/2 TLS Client Hello fingerprint randomization. For web portals, launches headless Playwright with Chrome DevTools Protocol (CDP) network interception; for API carriers (Akasa Air), connects directly to authenticated booking IBE endpoints.</p>
+                  <p style="margin-top: 4px; margin-bottom: 0;">Dispatches network requests through the 5-node residential proxy mesh (<code>IN-DEL</code>, <code>IN-BOM</code>, <code>IN-BLR</code>, <code>IN-CCU</code>, <code>IN-HYD</code>) with HTTP/2 TLS Client Hello fingerprint randomization. For carrier web portals (IndiGo, Air India, SpiceJet, Air India Express), executes high-speed direct HTTP REST extraction via <code>http_direct_scraper.py</code> (~1.1s latency); for API carriers (Akasa Air), connects directly to authenticated booking IBE endpoints.</p>
                 </div>
 
                 <!-- Stage 3 -->
