@@ -186,22 +186,165 @@ body.route-analysis-page {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 190px;
-  height: 180px;
+  width: 250px;
+  height: 250px;
   position: relative;
 }
 
-.india-map-img {
+.india-network-svg {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.45));
-  transition: transform 0.3s ease;
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.45));
 }
 
-.india-map-img:hover {
-  transform: scale(1.02);
-  filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.7));
+.map-svg-base {
+  width: 1000px;
+  height: 1000px;
+}
+
+.map-route-arc {
+  fill: none;
+  stroke: rgba(56, 189, 248, 0.22);
+  stroke-dasharray: 4 6;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  transition: stroke 0.3s ease, opacity 0.3s ease, stroke-width 0.3s ease;
+}
+
+.map-route-arc.route-highlighted {
+  stroke: rgba(56, 189, 248, 0.55);
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+}
+
+.active-route-arc-glow {
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 8;
+  stroke-linecap: round;
+  opacity: 0.45;
+  filter: url(#activeArcGlow);
+}
+
+.active-route-arc {
+  fill: none;
+  stroke: url(#activeFlightGrad);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.9));
+}
+
+.map-node-pulse {
+  fill: none;
+  stroke-width: 3px;
+  opacity: 0;
+  pointer-events: none;
+  animation: nodeBeaconPulse 2s infinite ease-out;
+}
+
+.map-node-pulse.pulse-origin {
+  stroke: #10b981;
+}
+
+.map-node-pulse.pulse-dest {
+  stroke: #38bdf8;
+}
+
+@keyframes nodeBeaconPulse {
+  0% {
+    r: 6;
+    opacity: 0.95;
+  }
+  100% {
+    r: 26;
+    opacity: 0;
+  }
+}
+
+.map-node-dot {
+  fill: #091a36;
+  stroke: #38bdf8;
+  stroke-width: 2.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.map-node-dot:hover {
+  fill: #38bdf8;
+  stroke: #ffffff;
+  r: 9;
+  filter: drop-shadow(0 0 10px #38bdf8);
+}
+
+.map-node-dot.node-active-origin {
+  fill: #10b981;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  r: 8.5;
+  filter: drop-shadow(0 0 12px #10b981);
+}
+
+.map-node-dot.node-active-dest {
+  fill: #38bdf8;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  r: 8.5;
+  filter: drop-shadow(0 0 12px #38bdf8);
+}
+
+.map-node-label {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  fill: #f1f5f9;
+  pointer-events: none;
+  text-anchor: middle;
+  paint-order: stroke fill;
+  stroke: rgba(9, 22, 45, 0.9);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+}
+
+.map-node-label.label-active {
+  opacity: 1;
+  font-size: 19px;
+  fill: #38bdf8;
+  stroke: rgba(4, 10, 22, 0.98);
+  stroke-width: 5px;
+}
+
+.map-node-label.label-origin {
+  fill: #10b981;
+}
+
+.flight-plane-icon {
+  fill: #ffffff;
+  stroke: #0284c7;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 8px #38bdf8) drop-shadow(0 0 3px #ffffff);
+}
+
+.map-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(9, 22, 45, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  z-index: 50;
+  transform: translate(-50%, -120%);
+  display: none;
+  backdrop-filter: blur(6px);
 }
 
 .map-stats-overlay {
@@ -1116,6 +1259,59 @@ html[data-theme="light"] body.route-analysis-page {
 
 [data-theme="light"] .india-map-container {
   background: transparent !important;
+}
+
+[data-theme="light"] .india-network-svg {
+  filter: drop-shadow(0 2px 10px rgba(2, 132, 199, 0.2));
+}
+
+[data-theme="light"] .map-route-arc {
+  stroke: rgba(2, 132, 199, 0.25);
+}
+
+[data-theme="light"] .map-route-arc.route-highlighted {
+  stroke: rgba(2, 132, 199, 0.6);
+}
+
+[data-theme="light"] .map-node-dot {
+  fill: #ffffff;
+  stroke: #0284c7;
+}
+
+[data-theme="light"] .map-node-dot:hover {
+  fill: #0284c7;
+  stroke: #ffffff;
+}
+
+[data-theme="light"] .map-node-dot.node-active-origin {
+  fill: #059669;
+  stroke: #ffffff;
+  filter: drop-shadow(0 0 10px rgba(5, 150, 105, 0.5));
+}
+
+[data-theme="light"] .map-node-dot.node-active-dest {
+  fill: #0284c7;
+  stroke: #ffffff;
+  filter: drop-shadow(0 0 10px rgba(2, 132, 199, 0.5));
+}
+
+[data-theme="light"] .map-node-label {
+  fill: #0f172a;
+  stroke: rgba(255, 255, 255, 0.95);
+}
+
+[data-theme="light"] .map-node-label.label-origin {
+  fill: #059669;
+}
+
+[data-theme="light"] .map-node-label.label-active {
+  fill: #0284c7;
+}
+
+[data-theme="light"] .flight-plane-icon {
+  fill: #ffffff;
+  stroke: #0284c7;
+  filter: drop-shadow(0 0 6px #0284c7) drop-shadow(0 0 2px #ffffff);
 }
 
 [data-theme="light"] .india-map-img {

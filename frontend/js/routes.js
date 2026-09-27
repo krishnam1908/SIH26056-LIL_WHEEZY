@@ -106,12 +106,14 @@
   var PAD = { top: 24, right: 30, bottom: 44, left: 72 };
 
   function getCityLabel(code) {
+    if (!code) return 'All Cities';
     var c = String(code || '').toUpperCase();
     var name = CITY_NAMES[c] || c;
     return name + ' (' + c + ')';
   }
 
   function getCityNameOnly(code) {
+    if (!code) return 'All Cities';
     var c = String(code || '').toUpperCase();
     return CITY_NAMES[c] || c;
   }
@@ -176,9 +178,11 @@
   }
 
   function getFilters() {
+    var originEl = document.getElementById('fOrigin');
+    var destEl = document.getElementById('fDestination');
     return {
-      origin: document.getElementById('fOrigin') ? document.getElementById('fOrigin').value : 'DEL',
-      destination: document.getElementById('fDestination') ? document.getElementById('fDestination').value : 'BOM',
+      origin: originEl ? originEl.value : '',
+      destination: destEl ? destEl.value : '',
       airline: document.getElementById('fAirline') ? document.getElementById('fAirline').value : '',
       window: document.getElementById('fWindow') ? document.getElementById('fWindow').value : '',
       travelDate: document.getElementById('fRange') ? document.getElementById('fRange').value : ''
@@ -226,20 +230,28 @@
   }
 
   function updateRouteHeaderVisuals(f, s) {
-    var orig = f.origin || 'DEL';
-    var dest = f.destination || 'BOM';
-    var origCity = getCityNameOnly(orig);
-    var destCity = getCityNameOnly(dest);
+    var orig = f.origin || '';
+    var dest = f.destination || '';
+    var origCity = orig ? getCityNameOnly(orig) : 'All Origins';
+    var destCity = dest ? getCityNameOnly(dest) : 'All Destinations';
 
     var titleEl = document.getElementById('routeDisplayTitle');
     if (titleEl) {
-      titleEl.innerHTML = escapeHtml(origCity) + ' &rarr; ' + escapeHtml(destCity);
+      if (!orig && !dest) {
+        titleEl.innerHTML = 'All Origins &rarr; All Destinations';
+      } else if (orig && !dest) {
+        titleEl.innerHTML = escapeHtml(origCity) + ' &rarr; All Destinations';
+      } else if (!orig && dest) {
+        titleEl.innerHTML = 'All Origins &rarr; ' + escapeHtml(destCity);
+      } else {
+        titleEl.innerHTML = escapeHtml(origCity) + ' &rarr; ' + escapeHtml(destCity);
+      }
     }
 
     var origBadge = document.getElementById('routeOrigCode');
     var destBadge = document.getElementById('routeDestCode');
-    if (origBadge) origBadge.textContent = orig;
-    if (destBadge) destBadge.textContent = dest;
+    if (origBadge) origBadge.textContent = orig || 'ALL';
+    if (destBadge) destBadge.textContent = dest || 'ALL';
 
     // Update banner card
     var bannerTag = document.getElementById('bannerRouteTag');
@@ -247,44 +259,411 @@
     var bannerSub = document.getElementById('bannerCitySub');
     var bannerImg = document.getElementById('bannerCityImg');
 
-    if (bannerTag) bannerTag.innerHTML = orig + ' &rarr; ' + dest;
+    if (bannerTag) {
+      bannerTag.innerHTML = (orig || 'ALL') + ' &rarr; ' + (dest || 'ALL');
+    }
 
-    var cityMeta = CITY_IMAGES[dest] || CITY_IMAGES['BOM'];
-    if (bannerCaption) bannerCaption.textContent = cityMeta.caption;
-    if (bannerSub) bannerSub.textContent = cityMeta.sub;
-    if (bannerImg && cityMeta.img) bannerImg.src = cityMeta.img;
+    if (!orig && !dest) {
+      if (bannerCaption) bannerCaption.textContent = 'Pan-India Airfare Network';
+      if (bannerSub) bannerSub.textContent = 'Nationwide benchmark across all domestic routes & carriers';
+      if (bannerImg) bannerImg.src = 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80';
+    } else if (orig && !dest) {
+      var origMeta = CITY_IMAGES[orig] || CITY_IMAGES['DEL'];
+      if (bannerCaption) bannerCaption.textContent = 'Outbound Routes from ' + origCity;
+      if (bannerSub) bannerSub.textContent = 'All connected destinations departing from ' + orig;
+      if (bannerImg && origMeta.img) bannerImg.src = origMeta.img;
+    } else {
+      var activeKey = dest || orig || 'BOM';
+      var cityMeta = CITY_IMAGES[activeKey] || CITY_IMAGES['BOM'];
+      if (bannerCaption) bannerCaption.textContent = cityMeta.caption;
+      if (bannerSub) bannerSub.textContent = cityMeta.sub;
+      if (bannerImg && cityMeta.img) bannerImg.src = cityMeta.img;
+    }
 
     // Update Map active state
     updateMapHighlight(orig, dest);
   }
 
-  function updateMapHighlight(orig, dest) {
-    // Reset all map arcs and nodes
-    var arcs = document.querySelectorAll('.map-arc');
-    arcs.forEach(function (arc) {
-      arc.classList.remove('active-arc');
-      arc.removeAttribute('filter');
-    });
+  var AIRPORT_COORDS = {
+    'DEL': { x: 344, y: 321, name: 'Delhi', state: 'Delhi' },
+    'BOM': { x: 232, y: 588, name: 'Mumbai', state: 'Maharashtra' },
+    'BLR': { x: 338, y: 775, name: 'Bengaluru', state: 'Karnataka' },
+    'MAA': { x: 408, y: 778, name: 'Chennai', state: 'Tamil Nadu' },
+    'CCU': { x: 628, y: 488, name: 'Kolkata', state: 'West Bengal' },
+    'HYD': { x: 388, y: 642, name: 'Hyderabad', state: 'Telangana' },
+    'AMD': { x: 216, y: 496, name: 'Ahmedabad', state: 'Gujarat' },
+    'PNQ': { x: 260, y: 606, name: 'Pune', state: 'Maharashtra' },
+    'GOI': { x: 258, y: 712, name: 'Goa', state: 'Goa' },
+    'GOX': { x: 258, y: 708, name: 'Goa (Mopa)', state: 'Goa' },
+    'JAI': { x: 305, y: 358, name: 'Jaipur', state: 'Rajasthan' },
+    'LKO': { x: 432, y: 364, name: 'Lucknow', state: 'Uttar Pradesh' },
+    'PAT': { x: 546, y: 395, name: 'Patna', state: 'Bihar' },
+    'GAU': { x: 728, y: 395, name: 'Guwahati', state: 'Assam' },
+    'SXR': { x: 275, y: 154, name: 'Srinagar', state: 'Jammu & Kashmir' },
+    'IXC': { x: 335, y: 255, name: 'Chandigarh', state: 'Chandigarh' },
+    'COK': { x: 308, y: 852, name: 'Kochi', state: 'Kerala' },
+    'TRV': { x: 324, y: 896, name: 'Thiruvananthapuram', state: 'Kerala' },
+    'BBI': { x: 552, y: 558, name: 'Bhubaneswar', state: 'Odisha' },
+    'VNS': { x: 492, y: 402, name: 'Varanasi', state: 'Uttar Pradesh' },
+    'IXB': { x: 652, y: 368, name: 'Bagdogra', state: 'West Bengal' },
+    'ATQ': { x: 278, y: 228, name: 'Amritsar', state: 'Punjab' },
+    'IDR': { x: 298, y: 486, name: 'Indore', state: 'Madhya Pradesh' },
+    'NAG': { x: 402, y: 532, name: 'Nagpur', state: 'Maharashtra' },
+    'RPR': { x: 476, y: 536, name: 'Raipur', state: 'Chhattisgarh' },
+    'VTZ': { x: 495, y: 645, name: 'Visakhapatnam', state: 'Andhra Pradesh' },
+    'CJB': { x: 330, y: 840, name: 'Coimbatore', state: 'Tamil Nadu' },
+    'IXZ': { x: 828, y: 946, name: 'Port Blair', state: 'Andaman & Nicobar' },
+    'IXE': { x: 284, y: 772, name: 'Mangalore', state: 'Karnataka' },
+    'BDQ': { x: 226, y: 512, name: 'Vadodara', state: 'Gujarat' }
+  };
 
-    var nodes = document.querySelectorAll('.map-node');
-    nodes.forEach(function (node) {
-      node.classList.remove('node-active');
-    });
+  function getRouteArcPath(origCode, destCode) {
+    var p1 = AIRPORT_COORDS[origCode];
+    var p2 = AIRPORT_COORDS[destCode];
+    if (!p1 || !p2) return '';
 
-    // Highlight specific arc if present
-    var targetArcId = 'arc-' + orig + '-' + dest;
-    var reverseArcId = 'arc-' + dest + '-' + orig;
-    var targetArc = document.getElementById(targetArcId) || document.getElementById(reverseArcId);
+    var dx = p2.x - p1.x;
+    var dy = p2.y - p1.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 1) return '';
 
-    if (targetArc) {
-      targetArc.classList.add('active-arc');
-      targetArc.setAttribute('filter', 'url(#arcGlow)');
+    var mx = (p1.x + p2.x) / 2;
+    var my = (p1.y + p2.y) / 2;
+
+    var nx = -dy / dist;
+    var ny = dx / dist;
+
+    var curveAmount = Math.min(35, Math.max(12, dist * 0.10));
+    var sign = (p2.x >= p1.x) ? -1 : 1;
+    var cx = mx + nx * curveAmount * sign;
+    var cy = my + ny * curveAmount * sign;
+
+    return 'M ' + p1.x + ' ' + p1.y + ' Q ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + p2.x + ' ' + p2.y;
+  }
+
+  function renderIndiaNetworkMap() {
+    var wrapper = document.getElementById('indiaMapWrapper');
+    if (!wrapper) return;
+
+    var originEl = document.getElementById('fOrigin');
+    var destEl = document.getElementById('fDestination');
+    var curOrig = originEl ? originEl.value : 'DEL';
+    var curDest = destEl ? destEl.value : 'BOM';
+
+    // Collect all valid route pairs from meta or fallback
+    var routePairs = [];
+    var pairMap = {};
+    if (state.validCityPairs && Object.keys(state.validCityPairs).length > 0) {
+      Object.keys(state.validCityPairs).forEach(function (orig) {
+        (state.validCityPairs[orig] || []).forEach(function (dest) {
+          var k = orig + '-' + dest;
+          if (!pairMap[k]) {
+            pairMap[k] = true;
+            routePairs.push({ orig: orig, dest: dest });
+          }
+        });
+      });
+    } else {
+      var defaultRoutes = [
+        ['DEL', 'BOM'], ['DEL', 'BLR'], ['DEL', 'CCU'], ['DEL', 'HYD'], ['DEL', 'MAA'],
+        ['DEL', 'AMD'], ['DEL', 'PNQ'], ['DEL', 'GOI'], ['DEL', 'GAU'], ['DEL', 'SXR'],
+        ['DEL', 'JAI'], ['DEL', 'LKO'], ['DEL', 'PAT'], ['DEL', 'TRV'], ['DEL', 'COK'],
+        ['DEL', 'BBI'], ['BOM', 'BLR'], ['BOM', 'CCU'], ['BOM', 'GOI'], ['AMD', 'BLR'],
+        ['AMD', 'BOM'], ['BLR', 'HYD'], ['BLR', 'COK'], ['HYD', 'DEL'], ['MAA', 'DEL']
+      ];
+      defaultRoutes.forEach(function (pair) {
+        routePairs.push({ orig: pair[0], dest: pair[1] });
+      });
     }
 
+    // Collect all active airport nodes
+    var activeAirports = {};
+    routePairs.forEach(function (pair) {
+      if (AIRPORT_COORDS[pair.orig]) activeAirports[pair.orig] = true;
+      if (AIRPORT_COORDS[pair.dest]) activeAirports[pair.dest] = true;
+    });
+
+    // Generate background route arcs HTML
+    var routesHtml = '';
+    routePairs.forEach(function (pair) {
+      var d = getRouteArcPath(pair.orig, pair.dest);
+      if (d) {
+        routesHtml += '<path id="arc-' + pair.orig + '-' + pair.dest + '" class="map-route-arc" d="' + d + '"></path>';
+      }
+    });
+
+    // Active flight arc path
+    var activeD = getRouteArcPath(curOrig, curDest);
+
+    // Generate airport nodes HTML
+    var nodesHtml = '';
+    var labelsHtml = '';
+    var pulsesHtml = '';
+
+    Object.keys(activeAirports).forEach(function (code) {
+      var pt = AIRPORT_COORDS[code];
+      if (!pt) return;
+
+      var isOrig = (code === curOrig);
+      var isDest = (code === curDest);
+      var isActive = isOrig || isDest;
+      var nodeClass = 'map-node-dot' + (isOrig ? ' node-active-origin' : '') + (isDest ? ' node-active-dest' : '');
+      var pulseClass = 'map-node-pulse' + (isOrig ? ' pulse-origin' : '') + (isDest ? ' pulse-dest' : '');
+      var labelClass = 'map-node-label' + (isActive ? ' label-active' : '') + (isOrig ? ' label-origin' : '');
+
+      pulsesHtml += '<circle id="pulse-' + code + '" class="' + pulseClass + '" cx="' + pt.x + '" cy="' + pt.y + '" r="6" style="' + (isActive ? '' : 'display:none;') + '"></circle>';
+
+      nodesHtml += '<circle id="node-' + code + '" class="' + nodeClass + '" data-code="' + code + '" data-name="' + escapeHtml(pt.name) + '" cx="' + pt.x + '" cy="' + pt.y + '" r="6"></circle>';
+
+      labelsHtml += '<text id="label-' + code + '" class="' + labelClass + '" x="' + pt.x + '" y="' + (pt.y - 12) + '" style="' + (isActive ? '' : 'display:none;') + '">' + code + '</text>';
+    });
+
+    var svgHtml =
+      '<svg id="indiaNetworkSvg" class="india-network-svg" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">' +
+        '<defs>' +
+          '<linearGradient id="activeFlightGrad" x1="0%" y1="0%" x2="100%" y2="100%">' +
+            '<stop offset="0%" stop-color="#10b981"/>' +
+            '<stop offset="50%" stop-color="#38bdf8"/>' +
+            '<stop offset="100%" stop-color="#0284c7"/>' +
+          '</linearGradient>' +
+          '<filter id="activeArcGlow" x="-20%" y="-20%" width="140%" height="140%">' +
+            '<feGaussianBlur stdDeviation="4" result="blur"/>' +
+            '<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>' +
+          '</filter>' +
+          '<filter id="planeGlow" x="-50%" y="-50%" width="200%" height="200%">' +
+            '<feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#38bdf8" flood-opacity="0.9"/>' +
+          '</filter>' +
+        '</defs>' +
+        '<image href="assets/images/india-map.svg" class="map-svg-base" width="1000" height="1000" preserveAspectRatio="xMidYMid meet"/>' +
+        '<g id="mapBackgroundRoutes">' + routesHtml + '</g>' +
+        '<g id="mapActiveFlightGroup">' +
+          '<path id="activeFlightArcGlow" class="active-route-arc-glow" d="' + activeD + '"></path>' +
+          '<path id="activeFlightArc" class="active-route-arc" d="' + activeD + '"></path>' +
+        '</g>' +
+        '<g id="mapPlaneGroup">' +
+          '<g id="flightPlaneMarker" class="flight-plane-marker">' +
+            '<path class="flight-plane-icon" d="M 12,0 L 3,3 L -4,12 L -7,12 L -5,3 L -11,6 L -13.5,5.5 L -10,0 L -13.5,-5.5 L -11,-6 L -5,-3 L -7,-12 L -4,-12 L 3,-3 Z"></path>' +
+            '<animateMotion id="flightPlaneAnim" dur="2.4s" repeatCount="indefinite" rotate="auto">' +
+              '<mpath id="flightPlaneMpath" href="#activeFlightArc"/>' +
+            '</animateMotion>' +
+          '</g>' +
+        '</g>' +
+        '<g id="mapPulsesGroup">' + pulsesHtml + '</g>' +
+        '<g id="mapNodesGroup">' + nodesHtml + '</g>' +
+        '<g id="mapLabelsGroup">' + labelsHtml + '</g>' +
+      '</svg>';
+
+    wrapper.innerHTML = svgHtml + '<div id="mapTooltip" class="map-tooltip"></div>';
+
+    initMapNodeInteractions();
+    updateMapHighlight(curOrig, curDest);
+  }
+
+  var tourTimer = null;
+  var tourIndex = 0;
+
+  function stopRouteTour() {
+    if (tourTimer) {
+      clearTimeout(tourTimer);
+      tourTimer = null;
+    }
+  }
+
+  function getTourRouteList(orig, dest) {
+    if (orig && dest) {
+      return [{ orig: orig, dest: dest }];
+    }
+
+    if (orig && !dest) {
+      var dests = (state.validCityPairs && state.validCityPairs[orig]) || ['BOM', 'BLR', 'CCU', 'GOI', 'AMD', 'HYD', 'MAA'];
+      return dests.map(function (d) { return { orig: orig, dest: d }; });
+    }
+
+    if (!orig && dest) {
+      var origs = (state.reverseCityPairs && state.reverseCityPairs[dest]) || ['DEL', 'BOM', 'BLR', 'HYD', 'MAA', 'AMD'];
+      return origs.map(function (o) { return { orig: o, dest: dest }; });
+    }
+
+    // All to All: Continuous Pan-India Network Tour covering all major corridors
+    var tour = [];
+    if (state.validCityPairs && Object.keys(state.validCityPairs).length > 0) {
+      var sequence = [
+        ['DEL', 'BOM'], ['BOM', 'GOI'], ['BOM', 'BLR'], ['BLR', 'COK'],
+        ['BLR', 'HYD'], ['HYD', 'DEL'], ['DEL', 'CCU'], ['BOM', 'CCU'],
+        ['DEL', 'GAU'], ['DEL', 'SXR'], ['DEL', 'AMD'], ['AMD', 'BLR'],
+        ['AMD', 'BOM'], ['AMD', 'DEL'], ['DEL', 'MAA'], ['MAA', 'DEL'],
+        ['DEL', 'TRV'], ['DEL', 'PAT'], ['DEL', 'LKO'], ['DEL', 'JAI'],
+        ['DEL', 'BBI'], ['DEL', 'PNQ']
+      ];
+      sequence.forEach(function (pair) {
+        if (state.validCityPairs[pair[0]] && state.validCityPairs[pair[0]].indexOf(pair[1]) !== -1) {
+          tour.push({ orig: pair[0], dest: pair[1] });
+        }
+      });
+
+      // Include any other remaining valid routes
+      Object.keys(state.validCityPairs).forEach(function (o) {
+        (state.validCityPairs[o] || []).forEach(function (d) {
+          var exists = tour.some(function (t) { return t.orig === o && t.dest === d; });
+          if (!exists) {
+            tour.push({ orig: o, dest: d });
+          }
+        });
+      });
+    }
+
+    if (!tour.length) {
+      tour = [
+        { orig: 'DEL', dest: 'BOM' }, { orig: 'BOM', dest: 'GOI' }, { orig: 'BOM', dest: 'BLR' },
+        { orig: 'BLR', dest: 'COK' }, { orig: 'BLR', dest: 'HYD' }, { orig: 'HYD', dest: 'DEL' },
+        { orig: 'DEL', dest: 'CCU' }, { orig: 'DEL', dest: 'GAU' }, { orig: 'DEL', dest: 'SXR' },
+        { orig: 'DEL', dest: 'AMD' }, { orig: 'AMD', dest: 'BOM' }, { orig: 'DEL', dest: 'MAA' },
+        { orig: 'MAA', dest: 'DEL' }, { orig: 'DEL', dest: 'TRV' }
+      ];
+    }
+
+    return tour;
+  }
+
+  function highlightSingleLeg(orig, dest, isTour) {
+    if (!orig || !dest) return;
+
+    var activeD = getRouteArcPath(orig, dest);
+    var activeArc = document.getElementById('activeFlightArc');
+    var activeArcGlow = document.getElementById('activeFlightArcGlow');
+    if (activeArc) activeArc.setAttribute('d', activeD);
+    if (activeArcGlow) activeArcGlow.setAttribute('d', activeD);
+
+    // Refresh the airplane animateMotion
+    var planeMarker = document.getElementById('flightPlaneMarker');
+    if (planeMarker && activeD) {
+      planeMarker.innerHTML =
+        '<path class="flight-plane-icon" d="M 12,0 L 3,3 L -4,12 L -7,12 L -5,3 L -11,6 L -13.5,5.5 L -10,0 L -13.5,-5.5 L -11,-6 L -5,-3 L -7,-12 L -4,-12 L 3,-3 Z"></path>' +
+        '<animateMotion id="flightPlaneAnim" dur="2.4s" repeatCount="indefinite" rotate="auto">' +
+          '<mpath href="#activeFlightArc"/>' +
+        '</animateMotion>';
+    }
+
+    // Reset node dots, pulses and labels
+    var allNodes = document.querySelectorAll('.map-node-dot');
+    allNodes.forEach(function (n) {
+      n.classList.remove('node-active-origin', 'node-active-dest');
+    });
+
+    var allPulses = document.querySelectorAll('.map-node-pulse');
+    allPulses.forEach(function (p) {
+      p.style.display = 'none';
+      p.classList.remove('pulse-origin', 'pulse-dest');
+    });
+
+    var allLabels = document.querySelectorAll('.map-node-label');
+    allLabels.forEach(function (l) {
+      l.style.display = 'none';
+      l.classList.remove('label-active', 'label-origin');
+    });
+
+    // In tour mode, also display major hub labels
+    if (isTour) {
+      ['DEL', 'BOM', 'BLR', 'CCU', 'HYD', 'MAA'].forEach(function (code) {
+        var lbl = document.getElementById('label-' + code);
+        if (lbl) lbl.style.display = 'block';
+      });
+    }
+
+    // Highlight active leg Origin
     var nodeOrig = document.getElementById('node-' + orig);
+    var pulseOrig = document.getElementById('pulse-' + orig);
+    var labelOrig = document.getElementById('label-' + orig);
+    if (nodeOrig) nodeOrig.classList.add('node-active-origin');
+    if (pulseOrig) {
+      pulseOrig.style.display = 'block';
+      pulseOrig.classList.add('pulse-origin');
+    }
+    if (labelOrig) {
+      labelOrig.style.display = 'block';
+      labelOrig.classList.add('label-active', 'label-origin');
+    }
+
+    // Highlight active leg Destination
     var nodeDest = document.getElementById('node-' + dest);
-    if (nodeOrig) nodeOrig.classList.add('node-active');
-    if (nodeDest) nodeDest.classList.add('node-active');
+    var pulseDest = document.getElementById('pulse-' + dest);
+    var labelDest = document.getElementById('label-' + dest);
+    if (nodeDest) nodeDest.classList.add('node-active-dest');
+    if (pulseDest) {
+      pulseDest.style.display = 'block';
+      pulseDest.classList.add('pulse-dest');
+    }
+    if (labelDest) {
+      labelDest.style.display = 'block';
+      labelDest.classList.add('label-active');
+    }
+  }
+
+  function startRouteTour(tourList) {
+    stopRouteTour();
+    if (!tourList || !tourList.length) return;
+
+    tourIndex = 0;
+
+    function nextLeg() {
+      if (!tourList || !tourList.length) return;
+      var pair = tourList[tourIndex % tourList.length];
+      tourIndex++;
+
+      highlightSingleLeg(pair.orig, pair.dest, true);
+
+      tourTimer = setTimeout(nextLeg, 2400);
+    }
+
+    nextLeg();
+  }
+
+  function updateMapHighlight(orig, dest) {
+    stopRouteTour();
+
+    // Reset all background route arcs
+    var allArcs = document.querySelectorAll('.map-route-arc');
+    allArcs.forEach(function (arc) {
+      arc.classList.remove('route-highlighted');
+    });
+
+    if (!orig && !dest) {
+      // All to All: highlight all network arcs and tour through all routes
+      allArcs.forEach(function (arc) {
+        arc.classList.add('route-highlighted');
+      });
+      var allTour = getTourRouteList('', '');
+      startRouteTour(allTour);
+    } else if (orig && !dest) {
+      // Specific Origin to All Destinations: highlight outbound arcs and tour
+      allArcs.forEach(function (arc) {
+        var id = arc.getAttribute('id') || '';
+        if (id.indexOf('arc-' + orig + '-') === 0) {
+          arc.classList.add('route-highlighted');
+        }
+      });
+      var outboundTour = getTourRouteList(orig, '');
+      startRouteTour(outboundTour);
+    } else if (!orig && dest) {
+      // All Origins to Specific Destination: highlight inbound arcs and tour
+      allArcs.forEach(function (arc) {
+        var id = arc.getAttribute('id') || '';
+        if (id.indexOf('-' + dest) !== -1) {
+          arc.classList.add('route-highlighted');
+        }
+      });
+      var inboundTour = getTourRouteList('', dest);
+      startRouteTour(inboundTour);
+    } else {
+      // Single specific route
+      var targetArcId = 'arc-' + orig + '-' + dest;
+      var revArcId = 'arc-' + dest + '-' + orig;
+      var targetArc = document.getElementById(targetArcId) || document.getElementById(revArcId);
+      if (targetArc) {
+        targetArc.classList.add('route-highlighted');
+      }
+      highlightSingleLeg(orig, dest, false);
+    }
   }
 
   function renderKpis(s) {
@@ -1066,34 +1445,34 @@
     var destEl = document.getElementById('fDestination');
     if (!originEl || !destEl) return;
 
-    var curOrigin = originEl.value || 'DEL';
-    var curDest = destEl.value || 'BOM';
+    var curOrigin = originEl.value || '';
+    var curDest = destEl.value || '';
 
     var allowedDestinations = state.destinations.length ? state.destinations : ['BOM', 'BLR', 'CCU', 'HYD', 'MAA', 'GOI', 'AMD', 'PNQ'];
     if (curOrigin && state.validCityPairs && state.validCityPairs[curOrigin] && state.validCityPairs[curOrigin].length) {
       allowedDestinations = state.validCityPairs[curOrigin];
-      if (curDest && allowedDestinations.indexOf(curDest) === -1) {
-        curDest = allowedDestinations[0] || 'BOM';
+      if (curDest && curDest !== '' && allowedDestinations.indexOf(curDest) === -1) {
+        curDest = '';
       }
     }
 
     var allowedOrigins = state.origins.length ? state.origins : ['DEL', 'BOM', 'BLR', 'CCU', 'HYD', 'MAA', 'AMD', 'PNQ'];
 
-    var destHtml = '';
-    allowedDestinations.forEach(function (v) {
-      var isSelected = (v === curDest) ? ' selected' : '';
-      destHtml += '<option value="' + escapeHtml(v) + '"' + isSelected + '>' + escapeHtml(getCityLabel(v)) + '</option>';
-    });
-    destEl.innerHTML = destHtml;
-    destEl.value = curDest;
-
-    var originHtml = '';
+    var originHtml = '<option value=""' + (curOrigin === '' ? ' selected' : '') + '>All Origins</option>';
     allowedOrigins.forEach(function (v) {
       var isSelected = (v === curOrigin) ? ' selected' : '';
       originHtml += '<option value="' + escapeHtml(v) + '"' + isSelected + '>' + escapeHtml(getCityLabel(v)) + '</option>';
     });
     originEl.innerHTML = originHtml;
     originEl.value = curOrigin;
+
+    var destHtml = '<option value=""' + (curDest === '' ? ' selected' : '') + '>All Destinations</option>';
+    allowedDestinations.forEach(function (v) {
+      var isSelected = (v === curDest) ? ' selected' : '';
+      destHtml += '<option value="' + escapeHtml(v) + '"' + isSelected + '>' + escapeHtml(getCityLabel(v)) + '</option>';
+    });
+    destEl.innerHTML = destHtml;
+    destEl.value = curDest;
   }
 
   function initTabs() {
@@ -1251,22 +1630,59 @@
   }
 
   function initMapNodeInteractions() {
-    var nodes = document.querySelectorAll('.map-node');
+    var nodes = document.querySelectorAll('.map-node-dot');
+    var tooltip = document.getElementById('mapTooltip');
+    var wrapper = document.getElementById('indiaMapWrapper');
+
     nodes.forEach(function (node) {
-      node.style.cursor = 'pointer';
+      var code = node.getAttribute('data-code');
+      var name = node.getAttribute('data-name') || code;
+
+      node.addEventListener('mouseenter', function () {
+        if (!tooltip || !wrapper) return;
+        var originEl = document.getElementById('fOrigin');
+        var curOrig = originEl ? originEl.value : 'DEL';
+        var isOrig = (code === curOrig);
+        var subText = isOrig ? '📍 Current Origin' : '✈️ Click to select';
+        tooltip.innerHTML = '<strong>' + escapeHtml(name) + ' (' + code + ')</strong><br><small style="color:#38bdf8;">' + subText + '</small>';
+        tooltip.style.display = 'block';
+
+        var wrapRect = wrapper.getBoundingClientRect();
+        var nodeRect = node.getBoundingClientRect();
+        var left = nodeRect.left - wrapRect.left + (nodeRect.width / 2);
+        var top = nodeRect.top - wrapRect.top;
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+
+        var lbl = document.getElementById('label-' + code);
+        if (lbl && lbl.style.display === 'none') {
+          lbl.style.display = 'block';
+          lbl.setAttribute('data-temp-show', 'true');
+        }
+      });
+
+      node.addEventListener('mouseleave', function () {
+        if (tooltip) tooltip.style.display = 'none';
+        var lbl = document.getElementById('label-' + code);
+        if (lbl && lbl.getAttribute('data-temp-show') === 'true') {
+          lbl.style.display = 'none';
+          lbl.removeAttribute('data-temp-show');
+        }
+      });
+
       node.addEventListener('click', function () {
-        var code = this.getAttribute('data-code');
-        if (!code) return;
         var originEl = document.getElementById('fOrigin');
         var destEl = document.getElementById('fDestination');
         if (!originEl || !destEl) return;
 
-        if (originEl.value !== code && state.origins.indexOf(code) !== -1) {
+        var curOrig = originEl.value;
+
+        if (state.validCityPairs && state.validCityPairs[curOrig] && state.validCityPairs[curOrig].indexOf(code) !== -1) {
+          destEl.value = code;
+          loadQuotes(false);
+        } else if (state.origins.indexOf(code) !== -1) {
           originEl.value = code;
           syncRouteDropdowns();
-          loadQuotes(false);
-        } else if (state.validCityPairs && state.validCityPairs[originEl.value] && state.validCityPairs[originEl.value].indexOf(code) !== -1) {
-          destEl.value = code;
           loadQuotes(false);
         }
       });
@@ -1295,8 +1711,8 @@
       fillSelect('fAirline', state.airlines, 'All airlines');
       fillDateRange(state.travelDates);
 
+      renderIndiaNetworkMap();
       bindChanges();
-      initMapNodeInteractions();
       loadQuotes();
     }).catch(function (err) {
       var routesCountEl = document.getElementById('meta-routes-count');
@@ -1306,7 +1722,7 @@
 
       syncRouteDropdowns();
       fillSelect('fAirline', ['Air India', 'Air India Express', 'Akasa Air', 'IndiGo', 'SpiceJet'], 'All airlines');
-      initMapNodeInteractions();
+      renderIndiaNetworkMap();
       loadQuotes();
       console.warn('Metadata fetch fallback loaded:', err);
     });

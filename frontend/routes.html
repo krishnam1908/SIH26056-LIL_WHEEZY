@@ -85,6 +85,7 @@
               <label for="fOrigin">From</label>
               <div class="select-wrapper">
                 <select id="fOrigin" aria-label="Origin Airport">
+                  <option value="">All Origins</option>
                   <option value="DEL" selected>Delhi (DEL)</option>
                 </select>
                 <span class="select-arrow">&#9662;</span>
@@ -95,6 +96,7 @@
               <label for="fDestination">To</label>
               <div class="select-wrapper">
                 <select id="fDestination" aria-label="Destination Airport">
+                  <option value="">All Destinations</option>
                   <option value="BOM" selected>Mumbai (BOM)</option>
                 </select>
                 <span class="select-arrow">&#9662;</span>
@@ -151,8 +153,8 @@
         <!-- Right India Network Map Section -->
         <div class="hero-map-col">
           <div class="india-map-container" id="indiaMapContainer">
-            <div class="india-map-image-wrapper">
-              <img src="assets/images/india-map.svg" alt="India Map" class="india-map-img" />
+            <div class="india-map-image-wrapper" id="indiaMapWrapper">
+              <div id="mapTooltip" class="map-tooltip"></div>
             </div>
 
             <!-- Dynamic Live Stats Badge Loaded Directly from MongoDB -->

@@ -680,6 +680,7 @@
     if (progressLabel) progressLabel.textContent = '⚡ Current Batch Buffer: ' + bufLen + ' / ' + bSize + ' Quotes';
 
     if (badge) {
+      badge.removeAttribute('style');
       if (status.status === 'RUNNING') {
         badge.className = 'data-badge-tag data-badge-tag--green';
         badge.innerHTML = '<span class="live-pulse" style="display:inline-block;width:6px;height:6px;background:#10b981;border-radius:50%;margin-right:4px;"></span>🟢 Streaming Active (Batch #' + ((status.totalBatchesSaved || 0) + 1) + ')';
@@ -687,19 +688,13 @@
         if (btnPause) { btnPause.disabled = false; btnPause.textContent = '⏸ Pause Stream'; }
         if (btnStop) btnStop.disabled = false;
       } else if (status.status === 'PAUSED') {
-        badge.className = 'data-badge-tag';
-        badge.style.background = 'rgba(245, 158, 11, 0.15)';
-        badge.style.color = '#f59e0b';
-        badge.style.borderColor = 'rgba(245, 158, 11, 0.35)';
+        badge.className = 'data-badge-tag data-badge-tag--amber';
         badge.textContent = '⏸ Stream Paused';
         if (btnStart) { btnStart.disabled = false; btnStart.innerHTML = '<span>▶</span> <span>Resume Stream</span>'; }
         if (btnPause) btnPause.disabled = true;
         if (btnStop) btnStop.disabled = false;
       } else {
-        badge.className = 'data-badge-tag';
-        badge.style.background = 'rgba(56, 189, 248, 0.12)';
-        badge.style.color = '#94a3b8';
-        badge.style.borderColor = 'rgba(56, 189, 248, 0.25)';
+        badge.className = 'data-badge-tag data-badge-tag--idle';
         badge.textContent = '⚪ Stream Idle';
         if (btnStart) { btnStart.disabled = false; btnStart.innerHTML = '<span>▶</span> <span>Start Continuous Stream</span>'; }
         if (btnPause) btnPause.disabled = true;
